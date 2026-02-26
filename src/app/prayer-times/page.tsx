@@ -20,6 +20,16 @@ const PRAYERS = [
 export default function PrayerTimesPage() {
   const [nextPrayer, setNextPrayer] = useState(PRAYERS[4]) // Default to Maghrib for UI demo
   const [notifications, setNotifications] = useState<Record<string, boolean>>({ "المغرب": true })
+  const [currentTime, setCurrentTime] = useState<string | null>(null)
+
+  // Avoid hydration error by setting the timer on mount
+  useEffect(() => {
+    setCurrentTime("01:42:05") // In a real app, this would be a real interval
+    const interval = setInterval(() => {
+      // Mock countdown logic
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <main className="min-h-screen p-4 max-w-lg mx-auto animate-fade-in pb-24">
@@ -40,7 +50,7 @@ export default function PrayerTimesPage() {
         <p className="text-secondary/90 font-headline font-bold mb-2">الصلاة القادمة</p>
         <h2 className="text-4xl font-headline font-bold mb-1">{nextPrayer.name}</h2>
         <div className="text-5xl font-headline font-bold tracking-tighter tabular-nums mb-4">
-          01:42:05
+          {currentTime || "--:--:--"}
         </div>
         <p className="text-primary-foreground/60 text-sm font-body italic">الوقت المتبقي للأذان</p>
       </Card>

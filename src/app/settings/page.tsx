@@ -2,11 +2,12 @@
 "use client"
 
 import { useState } from "react"
-import { Moon, Sun, Download, Shield, Bell, User, MessageCircle, Info } from "lucide-react"
+import { Moon, Download, Shield, Bell, MessageCircle, Info } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Navigation } from "@/components/Navigation"
+import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
   const [isDark, setIsDark] = useState(true)
@@ -82,7 +83,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <Button className="w-full bg-secondary hover:bg-secondary/90 text-primary font-headline font-bold h-12 rounded-xl">
+        <Button className="w-full bg-secondary hover:bg-secondary/90 text-primary font-headline font-bold h-12 rounded-xl shadow-lg shadow-secondary/10">
           إزالة الإعلانات (شراء النسخة الكاملة)
         </Button>
         
