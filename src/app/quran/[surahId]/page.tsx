@@ -1,9 +1,9 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowRight, Settings, Bookmark, Share2, Play, Info, MoreVertical } from "lucide-react"
+import { ArrowRight, Settings, Bookmark, Share2, Play, Info, Sparkles, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { 
@@ -13,30 +13,85 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { SURAHS, MOCK_VERSES } from "@/lib/quran-data"
+import { SURAHS } from "@/lib/quran-data"
 import { cn } from "@/lib/utils"
+import { useFirestore, useUser } from "@/firebase"
+import { doc, setDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { toast } from "@/hooks/use-toast"
+
+interface ApiVerse {
+  number: number;
+  text: string;
+  numberInSurah: number;
+}
 
 export default function SurahReader() {
   const router = useRouter()
   const params = useParams()
+  const { user } = useUser()
+  const db = useFirestore()
   const surahId = Number(params.surahId)
   
   const [fontSize, setFontSize] = useState(24)
-  const [showTafsir, setShowTafsir] = useState<number | null>(null)
+  const [verses, setVerses] = useState<ApiVerse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [favorites, setFavorites] = useState<number[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
 
   const surah = SURAHS.find(s => s.id === surahId)
-  const verses = MOCK_VERSES[surahId] || [
-    { id: 99, surahId, number: 1, text: "نموذج لنص قرآني لهذه السورة (تحميل البيانات...)", tafsir: "سيتم تحميل التفسير قريباً" }
-  ]
 
-  if (!surah) return <div>السورة غير موجودة</div>
+  useEffect(() => {
+    async function fetchSurah() {
+      try {
+        setLoading(true)
+        const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}`)
+        const data = await res.json()
+        setVerses(data.data.verses)
+      } catch (error) {
+        toast({ variant: "destructive", title: "خطأ", description: "فشل في تحميل السورة" })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSurah()
+  }, [surahId])
+
+  useEffect(() => {
+    if (!user) return
+    async function fetchFavorites() {
+      const q = query(collection(db, `users/${user?.uid}/favorites`), where("surahId", "==", surahId))
+      const querySnapshot = await getDocs(q)
+      setFavorites(querySnapshot.docs.map(doc => doc.data().verseNumber))
+    }
+    fetchFavorites()
+  }, [user, surahId, db])
+
+  const toggleFavorite = async (verseNumber: number) => {
+    if (!user) {
+      toast({ title: "تنبيه", description: "يجب تسجيل الدخول لحفظ المفضلات" })
+      return
+    }
+
+    const favRef = doc(db, `users/${user.uid}/favorites`, `${surahId}_${verseNumber}`)
+    
+    if (favorites.includes(verseNumber)) {
+      await deleteDoc(favRef)
+      setFavorites(f => f.filter(v => v !== verseNumber))
+      toast({ title: "تم المسح", description: "تمت إزالة الآية من المفضلة" })
+    } else {
+      await setDoc(favRef, {
+        surahId,
+        verseNumber,
+        surahName: surah?.name,
+        createdAt: new Date().toISOString(),
+        type: "verse"
+      })
+      setFavorites(f => [...f, verseNumber])
+      toast({ title: "تم الحفظ", description: "تمت إضافة الآية للمفضلة" })
+    }
+  }
+
+  if (!surah) return <div className="p-10 text-center font-headline">السورة غير موجودة</div>
 
   return (
     <main className="min-h-screen bg-background text-foreground animate-fade-in pb-24">
@@ -89,70 +144,57 @@ export default function SurahReader() {
         </div>
       </header>
 
-      {/* Bismillah */}
-      {surahId !== 9 && surahId !== 1 && (
-        <div className="py-8 text-center quran-text text-3xl opacity-90 border-b border-border/10 mb-8">
-          بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-40 gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="font-headline text-muted-foreground">جاري تحميل كلام الله...</p>
         </div>
-      )}
-
-      <div className="max-w-3xl mx-auto px-6 space-y-12 py-4">
-        {verses.map((verse) => (
-          <div key={verse.id} className="relative group">
-            <div 
-              className="quran-text transition-all duration-300 select-none leading-[3.5] text-right" 
-              style={{ fontSize: `${fontSize}px` }}
-            >
-              {verse.text}
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-secondary/30 mx-3 text-xs font-headline text-secondary align-middle">
-                {verse.number}
-              </span>
+      ) : (
+        <>
+          {surahId !== 9 && surahId !== 1 && (
+            <div className="py-8 text-center quran-text text-3xl opacity-90 border-b border-border/10 mb-8">
+              بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
             </div>
-            
-            <div className="mt-4 flex items-center justify-start gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 gap-2 text-xs font-headline text-muted-foreground hover:text-secondary"
-                onClick={() => setShowTafsir(showTafsir === verse.id ? null : verse.id)}
-              >
-                <Info className="w-4 h-4" />
-                التفسير
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-secondary">
-                <Bookmark className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-secondary">
-                <Share2 className="w-4 h-4" />
-              </Button>
-            </div>
+          )}
 
-            {showTafsir === verse.id && (
-              <div className="mt-4 p-4 bg-accent/50 rounded-xl border border-secondary/20 animate-slide-up text-sm font-body leading-relaxed">
-                <p className="text-secondary font-headline font-bold mb-2">تفسير السعدي:</p>
-                {verse.tafsir}
+          <div className="max-w-3xl mx-auto px-6 space-y-12 py-4">
+            {verses.map((verse) => (
+              <div key={verse.number} className="relative group">
+                <div 
+                  className="quran-text transition-all duration-300 select-none leading-[3.5] text-right" 
+                  style={{ fontSize: `${fontSize}px` }}
+                >
+                  {verse.text}
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-secondary/30 mx-3 text-xs font-headline text-secondary align-middle">
+                    {verse.numberInSurah}
+                  </span>
+                </div>
+                
+                <div className="mt-4 flex items-center justify-start gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 gap-2 text-xs font-headline text-muted-foreground hover:text-secondary"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    شرح الآية
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn("h-8 w-8 transition-colors", favorites.includes(verse.numberInSurah) ? "text-secondary fill-secondary" : "text-muted-foreground hover:text-secondary")}
+                    onClick={() => toggleFavorite(verse.numberInSurah)}
+                  >
+                    <Bookmark className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-secondary">
+                    <Share2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* Reader Controls (Floating) */}
-      {isPlaying && (
-        <div className="fixed bottom-24 left-4 right-4 z-50 bg-primary/95 backdrop-blur-lg border border-secondary/30 p-4 rounded-2xl flex items-center justify-between shadow-2xl animate-slide-up text-primary-foreground">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
-              <Play className="fill-primary text-primary w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-secondary/80 font-headline">جارٍ الاستماع</p>
-              <p className="text-sm font-headline font-bold">الشيخ ماهر المعيقلي</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsPlaying(false)} className="text-secondary hover:text-secondary hover:bg-secondary/10">
-            <Info className="w-6 h-6" />
-          </Button>
-        </div>
+        </>
       )}
     </main>
   )
