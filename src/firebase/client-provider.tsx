@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -16,6 +17,7 @@ export function FirebaseClientProvider({
   children: React.ReactNode;
 }) {
   // Memoize services so they are initialized once per client mount
+  // This is safe because it only runs in the browser ('use client')
   const services = useMemo(() => initializeFirebase(), []);
 
   return (
