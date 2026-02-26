@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "quran-splash",
+      "description": "Elegant Islamic pattern background",
+      "imageUrl": "https://images.unsplash.com/photo-1558114965-eeb97aa84c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxpc2xhbWljJTIwcGF0dGVybnxlbnwwfHx8fDE3NzIxNDQxOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "islamic pattern"
+    },
+    {
+      "id": "quran-hero",
+      "description": "Close up of Holy Quran pages",
+      "imageUrl": "https://images.unsplash.com/photo-1624862760439-4056a5111511?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxxdXJhbiUyMGJvb2t8ZW58MHx8fHwxNzcyMTQ3NTc5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "quran book"
+    }
+  ]
 }
